@@ -1,0 +1,141 @@
+#K means implementation in Python 3
+import pandas as pd
+import numpy as np
+from scipy import spatial
+
+
+current_dir = os.getcwd()
+
+
+#Initiate centers. For simplicity, randomly select k points to be the initial medoids. 
+#Set replace to 'false'to prevent duplicate points
+
+def initialize_centers(k,dataset):   
+    
+    rand_ints=np.random.choice(len(dataset),k,replace=False)    
+    
+    return(dataset[rand_ints])
+
+#Function to assign class labels. For each point, use Euclidean norm to calculate distance
+#of each point to each of the centers. Then, assign that point to a class based on closest center
+def assign_class_labels(centers,dataset):
+    
+    class_labels = []
+    
+    for point in dataset:
+        label = []
+        
+        for center in centers:
+            label.append(np.linalg.norm(point-center))
+        
+        class_labels.append(np.argmin(label))  
+    
+    return class_labels
+
+#Now that we have divided the data into classes, we can calculate the average of each class
+#to get the new centers (for k means) or find the most 'representative point' for each class (for k medoids).
+
+
+def update_medoids(k,class_labels,dataset):
+    
+    meds_new = []
+    sorted_by_class = []
+    
+    #Get unique number of class labels. If this is different (empty clusters), then update
+    #to remove empty clusters
+    if len(set(class_labels)) != k:
+        label_list = list(set(class_labels))
+    else:
+        label_list = range(0,k)
+        
+    #Group arrays by class label
+    for i in label_list:
+        sorted_by_class.append([dataset[j] for j in range(len(dataset)) if class_labels[j] == i])
+    
+    for group in sorted_by_class:
+        appx_med =  np.median(np.vstack(group),axis = 0)
+        #Find point nearest to the appx median point
+        meds_new.append(group[np.argmin(spatial.distance.cdist(appx_med.reshape(1,-1),group))])
+       
+        #for group in sorted_by_class:
+        #Find sum of all rows
+        #array_of_sums = np.apply_along_axis(sum,1,group)
+        #Obtain value closest to the mean of the sums
+        #med = np.median(array_of_sums)
+        #point = group[np.abs(array_of_sums-med).argmin()]
+        
+        #meds_new.append(point)
+     
+    return meds_new
+
+
+def update_means(k,class_labels,dataset):
+    
+    centers_new = []
+    sorted_by_class = []
+    
+    #Get unique number of class labels. If this is different (empty clusters), then update
+    #to remove empty clusters
+    if len(set(class_labels)) != k:
+        label_list = list(set(class_labels))
+    else:
+        label_list = range(0,k)
+       
+        #Group arrays by class label
+    for i in label_list:
+        sorted_by_class.append([dataset[j] for j in range(len(dataset)) if class_labels[j] == i])
+    
+    for group in sorted_by_class:
+        centers_new.append(np.median(np.vstack(group),axis = 0))
+        
+    return centers_new
+    
+    
+#Full kmedoids function
+def kmedoids(k,dataset,max_iter = 50):
+    
+    #Initialize random medoids
+    medoids = initialize_centers(k,dataset)
+    meds_new = [1]*k
+    diff = 1
+    step = 0
+    
+    #While medoids are not moving, assign points to new classes ad update points to their closest medoid
+    while(diff != 0):
+        
+        labels = assign_class_labels(medoids,dataset)
+        meds_new = update_medoids(k,labels,dataset)
+        diff = np.linalg.norm(medoids - meds_new)
+        step = step + 1
+        
+        if step == max_iter:
+            break
+    
+    print("K medoids terminated after:",step,"iterations")
+    
+    return labels,meds_new
+
+#Full kmeans
+def kmeans(k,dataset,max_iter = 30):
+    
+    #Initialize random medoids
+    centers = initialize_centers(k,dataset)
+    centers_new = [1]*k
+    diff = 1
+    step = 0
+    
+    #While means are not moving, assign points to new classes and update points to their closest center
+    while(diff != 0):
+        
+        labels = assign_class_labels(centers,dataset)
+        centers_new = update_means(k,labels,dataset)
+        diff = np.linalg.norm(centers - centers_new)
+        centers = np.array(centers_new)
+        step = step + 1
+        
+        if step == max_iter:
+            break
+    
+    print("K means terminated after:",step,"iterations")
+    
+    return labels,centers_new
